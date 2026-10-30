@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User profile with role, team, and display information",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Auth UID of the user" },
+        "name": { "type": "string", "description": "Full name of the user" },
+        "email": { "type": "string", "description": "Email address" },
+        "role": { "type": "string", "enum": ["manager", "specialist", "viewer"], "description": "Role in marketing department" },
+        "avatar": { "type": "string", "description": "Avatar URL or icon identifier" },
+        "department": { "type": "string", "description": "Department name" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of creation" }
+      },
+      "required": ["userId", "name", "email", "role"]
+    },
+    "Task": {
+      "title": "Marketing Task",
+      "description": "A task or responsibility in the advertising and digital marketing department",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier of the task" },
+        "title": { "type": "string", "description": "Task title or responsibility topic" },
+        "description": { "type": "string", "description": "Detailed description and campaign briefs" },
+        "category": {
+          "type": "string",
+          "enum": ["campaigns", "social_media", "content_design", "seo_web", "digital_ads", "email_sms", "pr_branding", "events_sponsorship"],
+          "description": "Marketing category or responsibility area"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"],
+          "description": "Priority level"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["todo", "in_progress", "review", "completed"],
+          "description": "Kanban status"
+        },
+        "creatorId": { "type": "string", "description": "UID of task creator" },
+        "assigneeId": { "type": "string", "description": "UID of assignee" },
+        "assigneeName": { "type": "string", "description": "Name of assigned marketer" },
+        "jalaliDueDate": { "type": "string", "description": "Jalali due date in YYYY/MM/DD format" },
+        "dueDate": { "type": "string", "description": "Due date ISO string or timestamp" },
+        "reminderDateTime": { "type": "string", "description": "Reminder date and time" },
+        "progress": { "type": "number", "description": "Progress percentage from 0 to 100" },
+        "estimatedHours": { "type": "number", "description": "Estimated hours" },
+        "actualHours": { "type": "number", "description": "Logged hours" },
+        "tags": { "type": "array", "description": "Custom tags" },
+        "attachments": { "type": "array", "description": "Attached files, links, or creative materials" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
+      },
+      "required": ["id", "title", "category", "priority", "status", "creatorId"]
+    },
+    "Comment": {
+      "title": "Task Comment",
+      "description": "Comment or feedback from team members or management on a task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Comment ID" },
+        "taskId": { "type": "string", "description": "Associated task ID" },
+        "authorId": { "type": "string", "description": "UID of the author" },
+        "authorName": { "type": "string", "description": "Name of the author" },
+        "authorRole": { "type": "string", "description": "Role of author (e.g. manager or marketer)" },
+        "content": { "type": "string", "description": "Comment text or managerial feedback" },
+        "isManagerNote": { "type": "boolean", "description": "Flag indicating manager directive or approval" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "taskId", "authorId", "content", "createdAt"]
+    },
+    "MarketingReport": {
+      "title": "Periodic Marketing Report",
+      "description": "Periodic productivity and performance report submitted to team management",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Report ID" },
+        "title": { "type": "string", "description": "Report title" },
+        "period": { "type": "string", "enum": ["daily", "weekly", "monthly", "campaign"], "description": "Reporting period" },
+        "authorId": { "type": "string", "description": "Author UID" },
+        "authorName": { "type": "string", "description": "Author name" },
+        "dateRange": { "type": "string", "description": "Date range in Jalali calendar" },
+        "metrics": { "type": "object", "description": "Summary numbers of tasks, completion rate, hours" },
+        "summary": { "type": "string", "description": "Narrative summary and executive highlights" },
+        "exportedToSheets": { "type": "boolean", "description": "Whether exported to Google Sheets" },
+        "sheetsUrl": { "type": "string", "description": "Google Sheets spreadsheet URL if exported" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "title", "period", "authorId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Marketing team member user profiles"
+    },
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Digital marketing and advertising tasks and responsibilities"
+    },
+    "/tasks/{taskId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/Comment" },
+      "description": "Direct comments, feedback, and managerial directives on a task"
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/MarketingReport" },
+      "description": "Periodic performance reports for the marketing manager"
+    }
+  }
+}

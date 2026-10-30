@@ -1,0 +1,6 @@
+{
+  "name": "RCG Marketing - مدیریت وظایف تبلیغات و دیجیتال مارکتینگ",
+  "description": "سامانه مدیریت جامع کارها، مسئولیت‌ها، ددلاین‌های تقویم خورشیدی، گزارش‌دهی دوره‌ای و داشبورد تحلیل بازدهی تیم دیجیتال مارکتینگ RCG",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

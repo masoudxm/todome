@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   BarChart3,
+  Calculator,
   Calendar,
   CheckCircle2,
   CheckSquare,
@@ -43,6 +44,7 @@ interface SidebarProps {
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
   onOpenTeamModal?: () => void;
+  onOpenMarketingTools?: () => void;
   onLogout?: () => void;
 }
 
@@ -66,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen = false,
   onCloseMobile,
   onOpenTeamModal,
+  onOpenMarketingTools,
   onLogout,
 }) => {
   const [hoveredTooltip, setHoveredTooltip] = useState<string | null>(null);
@@ -124,10 +127,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed md:static top-0 right-0 z-50 md:z-30 flex flex-col justify-between bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 transition-all duration-300 h-screen select-none shrink-0 shadow-2xl md:shadow-none ${
+        className={`fixed md:static top-0 right-0 z-50 md:z-30 flex flex-col justify-between bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 transition-all duration-300 h-screen select-none shrink-0 md:shadow-none ${
           isMobileOpen
-            ? 'translate-x-0 w-72'
-            : '-translate-x-full md:translate-x-0'
+            ? 'translate-x-0 w-72 shadow-2xl visible pointer-events-auto'
+            : 'translate-x-full md:translate-x-0 invisible md:visible pointer-events-none md:pointer-events-auto shadow-none'
         } ${isCollapsed ? 'md:w-20' : 'md:w-64'}`}
       >
         {/* Top Section */}
@@ -254,6 +257,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
               );
             })}
           </nav>
+
+          {/* Marketing Utilities Section */}
+          {onOpenMarketingTools && (
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenMarketingTools();
+                  if (onCloseMobile) onCloseMobile();
+                }}
+                className={`w-full flex items-center gap-3 p-2.5 rounded-2xl text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50/70 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/60 transition cursor-pointer ${
+                  isCollapsed && !isMobileOpen ? 'justify-center' : 'justify-start'
+                }`}
+                title="جعبه‌ابزار مارکتینگ (محاسبه ROAS و سازنده UTM)"
+              >
+                <Calculator className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                {(!isCollapsed || isMobileOpen) && (
+                  <span className="truncate flex-1 text-right">جعبه‌ابزار مارکتینگ</span>
+                )}
+                {(!isCollapsed || isMobileOpen) && (
+                  <span className="px-1.5 py-0.5 rounded-md text-[9px] bg-indigo-600 text-white font-black">
+                    ROAS & UTM
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Bottom Section: User Profile, Settings, Theme */}
@@ -282,8 +312,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">
                     {currentUser.name}
                   </span>
-                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold block truncate">
-                    پروفایل کاربری
+                  <span
+                    className={`text-[10px] font-bold block truncate ${
+                      currentUser.role === 'ceo'
+                        ? 'text-amber-500'
+                        : currentUser.role === 'manager'
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-slate-500'
+                    }`}
+                  >
+                    {currentUser.role === 'ceo'
+                      ? 'مدیرعامل هلدینگ (CEO)'
+                      : currentUser.role === 'manager'
+                      ? 'مدیر ارشد مارکتینگ'
+                      : 'کارشناس تبلیغات'}
                   </span>
                 </div>
               )}
@@ -297,8 +339,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* Senior Manager: Team & Access Management */}
-          {currentUser.role === 'manager' && onOpenTeamModal && (
+          {/* Senior Manager & CEO: Team & Access Management */}
+          {(currentUser.role === 'manager' || currentUser.role === 'ceo') && onOpenTeamModal && (
             <div className="relative">
               <button
                 type="button"
@@ -308,7 +350,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 onMouseEnter={() => isCollapsed && !isMobileOpen && setHoveredTooltip('team')}
                 onMouseLeave={() => setHoveredTooltip(null)}
-                className={`w-full flex items-center gap-2.5 p-2 rounded-2xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition ${
+                className={`w-full flex items-center gap-2.5 p-2 rounded-2xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition cursor-pointer ${
                   isCollapsed && !isMobileOpen ? 'justify-center' : ''
                 }`}
               >

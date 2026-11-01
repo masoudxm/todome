@@ -34,7 +34,6 @@ import {
 } from './lib/workspace';
 import { Sidebar, NavView } from './components/Sidebar';
 import { Navbar } from './components/Navbar';
-import { MobileBottomNav } from './components/MobileBottomNav';
 import { KanbanBoard } from './components/KanbanBoard';
 import { MyTasksView } from './components/MyTasksView';
 import { JalaliCalendarView } from './components/JalaliCalendarView';
@@ -44,6 +43,7 @@ import { TaskModal } from './components/TaskModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { SettingsModal } from './components/SettingsModal';
 import { TeamManagementModal } from './components/TeamManagementModal';
+import { MarketingToolsModal } from './components/MarketingToolsModal';
 import { LoginModal } from './components/LoginModal';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import { ReminderNotification } from './components/ReminderNotification';
@@ -165,6 +165,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<NavView>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -177,6 +178,7 @@ export default function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isMarketingToolsOpen, setIsMarketingToolsOpen] = useState(false);
 
   // Task & Comment States (Local + Cloud Sync)
   const [tasks, setTasks] = useState<Task[]>(() => {
@@ -707,6 +709,7 @@ export default function App() {
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onOpenTeamModal={() => setIsTeamModalOpen(true)}
+        onOpenMarketingTools={() => setIsMarketingToolsOpen(true)}
         onLogout={handleLogout}
         googleUser={googleUser}
         onGoogleSignIn={handleGoogleSignIn}
@@ -733,75 +736,149 @@ export default function App() {
           upcomingReminders={upcomingReminders}
           onSelectTask={handleSelectTask}
           onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
+          viewMode={viewMode}
+          onToggleViewMode={() => setViewMode((prev) => (prev === 'desktop' ? 'mobile' : 'desktop'))}
+          teamMembers={teamMembers}
         />
 
-        {/* View Switcher Container with bottom padding for mobile bar */}
-        <div className="flex-1 pb-24 md:pb-12">
-          {currentView === 'dashboard' && (
-            <ManagerDashboard
-              tasks={tasks}
-              onSelectTask={handleSelectTask}
-              onOpenTaskComments={(t) => {
-                setEditingTask(t);
-                setIsTaskModalOpen(true);
-              }}
-              onNavigateToReports={() => setCurrentView('reports')}
-            />
-          )}
+        {/* View Switcher Container */}
+        {viewMode === 'mobile' ? (
+          <div className="flex-1 overflow-y-auto bg-slate-200/60 dark:bg-slate-950 p-3 sm:p-6 flex flex-col items-center justify-start">
+            {/* Top Frame Info */}
+            <div className="flex items-center gap-2 mb-3 text-xs text-slate-500 font-bold">
+              <span>پیش‌نمایش در ابعاد استاندارد تلفن همراه (Mobile Frame)</span>
+              <button
+                type="button"
+                onClick={() => setViewMode('desktop')}
+                className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+              >
+                بازگشت به دسکتاپ
+              </button>
+            </div>
 
-          {currentView === 'my_tasks' && (
-            <MyTasksView
-              tasks={tasks}
-              currentUser={currentUser}
-              onSelectTask={handleSelectTask}
-              onUpdateStatus={handleUpdateStatus}
-              onOpenNewTask={() => handleOpenNewTask()}
-            />
-          )}
+            {/* Simulated Smartphone Shell */}
+            <div className="w-[390px] h-[780px] max-w-full bg-white dark:bg-slate-900 border-[10px] border-slate-800 dark:border-slate-700 rounded-[44px] shadow-2xl flex flex-col overflow-hidden relative ring-4 ring-slate-400/20">
+              {/* Phone Speaker Notch */}
+              <div className="w-28 h-4 bg-slate-800 dark:bg-slate-700 rounded-b-xl mx-auto z-20 shrink-0" />
+              <div className="flex-1 overflow-y-auto pb-8">
+                {currentView === 'dashboard' && (
+                  <ManagerDashboard
+                    tasks={tasks}
+                    currentUser={currentUser}
+                    teamMembers={teamMembers}
+                    onSelectTask={handleSelectTask}
+                    onOpenTaskComments={(t) => {
+                      setEditingTask(t);
+                      setIsTaskModalOpen(true);
+                    }}
+                    onNavigateToReports={() => setCurrentView('reports')}
+                  />
+                )}
 
-          {currentView === 'kanban' && (
-            <KanbanBoard
-              tasks={filteredTasks}
-              onSelectTask={handleSelectTask}
-              onUpdateStatus={handleUpdateStatus}
-              onQuickAddTask={(status) => handleOpenNewTask(status)}
-              currentUser={currentUser}
-            />
-          )}
+                {currentView === 'my_tasks' && (
+                  <MyTasksView
+                    tasks={tasks}
+                    currentUser={currentUser}
+                    onSelectTask={handleSelectTask}
+                    onUpdateStatus={handleUpdateStatus}
+                    onOpenNewTask={() => handleOpenNewTask()}
+                  />
+                )}
 
-          {currentView === 'calendar' && (
-            <JalaliCalendarView
-              tasks={filteredTasks}
-              onSelectTask={handleSelectTask}
-              onAddTaskForDate={(jalaliDateStr) => handleOpenNewTask('todo', jalaliDateStr)}
-            />
-          )}
+                {currentView === 'kanban' && (
+                  <KanbanBoard
+                    tasks={filteredTasks}
+                    allTasks={tasks}
+                    onSelectTask={handleSelectTask}
+                    onUpdateStatus={handleUpdateStatus}
+                    onQuickAddTask={(status) => handleOpenNewTask(status)}
+                    currentUser={currentUser}
+                  />
+                )}
 
-          {currentView === 'reports' && (
-            <PeriodicReports
-              tasks={tasks}
-              reports={reports}
-              currentUser={currentUser}
-              onSaveReport={handleSaveReport}
-              onRequestExportToSheets={handleExportToGoogleSheets}
-            />
-          )}
-        </div>
+                {currentView === 'calendar' && (
+                  <JalaliCalendarView
+                    tasks={filteredTasks}
+                    onSelectTask={handleSelectTask}
+                    onAddTaskForDate={(jalaliDateStr) => handleOpenNewTask('todo', jalaliDateStr)}
+                  />
+                )}
 
-        {/* Mobile App Bottom Navigation Bar */}
-        <MobileBottomNav
-          currentView={currentView}
-          onSelectView={setCurrentView}
-          onOpenNewTask={() => handleOpenNewTask()}
-          myTasksCount={myTasksCount}
-          remindersCount={upcomingReminders.length}
-        />
+                {currentView === 'reports' && (
+                  <PeriodicReports
+                    tasks={tasks}
+                    reports={reports}
+                    currentUser={currentUser}
+                    onSaveReport={handleSaveReport}
+                    onRequestExportToSheets={handleExportToGoogleSheets}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 pb-8">
+            {currentView === 'dashboard' && (
+              <ManagerDashboard
+                tasks={tasks}
+                currentUser={currentUser}
+                teamMembers={teamMembers}
+                onSelectTask={handleSelectTask}
+                onOpenTaskComments={(t) => {
+                  setEditingTask(t);
+                  setIsTaskModalOpen(true);
+                }}
+                onNavigateToReports={() => setCurrentView('reports')}
+              />
+            )}
+
+            {currentView === 'my_tasks' && (
+              <MyTasksView
+                tasks={tasks}
+                currentUser={currentUser}
+                onSelectTask={handleSelectTask}
+                onUpdateStatus={handleUpdateStatus}
+                onOpenNewTask={() => handleOpenNewTask()}
+              />
+            )}
+
+            {currentView === 'kanban' && (
+              <KanbanBoard
+                tasks={filteredTasks}
+                allTasks={tasks}
+                onSelectTask={handleSelectTask}
+                onUpdateStatus={handleUpdateStatus}
+                onQuickAddTask={(status) => handleOpenNewTask(status)}
+                currentUser={currentUser}
+              />
+            )}
+
+            {currentView === 'calendar' && (
+              <JalaliCalendarView
+                tasks={filteredTasks}
+                onSelectTask={handleSelectTask}
+                onAddTaskForDate={(jalaliDateStr) => handleOpenNewTask('todo', jalaliDateStr)}
+              />
+            )}
+
+            {currentView === 'reports' && (
+              <PeriodicReports
+                tasks={tasks}
+                reports={reports}
+                currentUser={currentUser}
+                onSaveReport={handleSaveReport}
+                onRequestExportToSheets={handleExportToGoogleSheets}
+              />
+            )}
+          </div>
+        )}
       </main>
 
       {/* Task Creation & Detail Modal */}
       {isTaskModalOpen && (
         <TaskModal
           task={editingTask}
+          allTasks={tasks}
           isOpen={isTaskModalOpen}
           currentUser={currentUser}
           comments={editingTask ? commentsMap[editingTask.id] || [] : []}
@@ -842,6 +919,12 @@ export default function App() {
         currentUser={currentUser}
         onSaveMember={handleSaveMember}
         onDeleteMember={handleDeleteMember}
+      />
+
+      {/* Digital Marketing Utilities Modal (ROAS, CAC, UTM Builder) */}
+      <MarketingToolsModal
+        isOpen={isMarketingToolsOpen}
+        onClose={() => setIsMarketingToolsOpen(false)}
       />
 
       {/* Login Authentication Modal */}

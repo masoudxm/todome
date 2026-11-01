@@ -5,9 +5,10 @@ import {
   Calendar,
   Filter,
   Menu,
+  Monitor,
   Plus,
   Search,
-  SlidersHorizontal,
+  Smartphone,
   X,
 } from 'lucide-react';
 import { Task, TaskCategory, TaskPriority, UserProfile } from '../types';
@@ -15,7 +16,6 @@ import { CATEGORIES, PRIORITIES, TEAM_MEMBERS } from '../lib/constants';
 import {
   formatJalaliDate,
   getCurrentJalaliDate,
-  JALALI_WEEKDAYS,
   toPersianDigits,
 } from '../lib/jalali';
 import {
@@ -36,6 +36,9 @@ interface NavbarProps {
   upcomingReminders: Task[];
   onSelectTask: (task: Task) => void;
   onOpenMobileMenu?: () => void;
+  viewMode?: 'desktop' | 'mobile';
+  onToggleViewMode?: () => void;
+  teamMembers?: UserProfile[];
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -51,6 +54,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   upcomingReminders,
   onSelectTask,
   onOpenMobileMenu,
+  viewMode = 'desktop',
+  onToggleViewMode,
+  teamMembers = TEAM_MEMBERS,
 }) => {
   const [showRemindersPopover, setShowRemindersPopover] = useState(false);
   const [showFilterPills, setShowFilterPills] = useState(false);
@@ -92,8 +98,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenMobileMenu}
-            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
-            title="منوی اصلی"
+            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+            title="منوی اصلی سامانه"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -124,7 +130,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => onSearchChange('')}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -134,16 +140,42 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 justify-end flex-1 sm:flex-initial">
+          {/* Desktop / Mobile Simulator Mode Toggle Button */}
+          {onToggleViewMode && (
+            <button
+              type="button"
+              onClick={onToggleViewMode}
+              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition cursor-pointer shrink-0 ${
+                viewMode === 'mobile'
+                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-300 dark:border-indigo-800 shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-300'
+              }`}
+              title={viewMode === 'mobile' ? 'تغییر به نمای دسکتاپ' : 'تغییر به پیش‌نمایش حالت موبایل'}
+            >
+              {viewMode === 'mobile' ? (
+                <>
+                  <Smartphone className="w-4 h-4 text-indigo-500" />
+                  <span className="hidden xl:inline text-[11px]">نمای موبایل</span>
+                </>
+              ) : (
+                <>
+                  <Monitor className="w-4 h-4 text-slate-500" />
+                  <span className="hidden xl:inline text-[11px]">نمای دسکتاپ</span>
+                </>
+              )}
+            </button>
+          )}
+
           {/* Browser Notification Permission Button if not yet granted */}
           {isNotificationSupported() && notifPermission === 'default' && (
             <button
               type="button"
               onClick={handleEnableNotifications}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 rounded-xl text-xs font-bold transition animate-pulse"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 rounded-xl text-xs font-bold transition animate-pulse cursor-pointer"
               title="فعال‌سازی نوتیفیکیشن مرورگر برای باخبر شدن از ددلاین‌ها"
             >
               <BellRing className="w-3.5 h-3.5 text-amber-600" />
-              <span>فعال‌سازی اعلان ددلاین</span>
+              <span>فعال‌سازی اعلان</span>
             </button>
           )}
 
@@ -162,7 +194,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => setShowFilterPills(!showFilterPills)}
-            className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition shrink-0 ${
+            className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition shrink-0 cursor-pointer ${
               hasActiveFilters || showFilterPills
                 ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent hover:border-slate-300'
@@ -181,7 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setShowRemindersPopover(!showRemindersPopover)}
-              className="relative p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+              className="relative p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
               title="هشدارهای زمان‌بندی شده"
             >
               <Bell className="w-4 h-4" />
@@ -202,7 +234,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowRemindersPopover(false)}
-                    className="text-slate-400 hover:text-slate-600"
+                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -242,7 +274,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenNewTaskModal}
-            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition shrink-0"
+            className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>وظیفه جدید</span>
@@ -296,10 +328,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onChange={(e) => onAssigneeChange(e.target.value)}
                 className="w-full text-xs p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200"
               >
-                <option value="all">همه کارشناسان</option>
-                {TEAM_MEMBERS.map((m) => (
+                <option value="all">همه اعضای تیم</option>
+                {teamMembers.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.name}
+                    {m.name} ({m.title})
                   </option>
                 ))}
               </select>
@@ -308,7 +340,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={handleClearFilters}
-                  className="px-2.5 py-1.5 text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg whitespace-nowrap transition"
+                  className="px-2.5 py-1.5 text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg whitespace-nowrap transition cursor-pointer"
                   title="پاک کردن فیلترها"
                 >
                   حذف فیلتر

@@ -465,6 +465,17 @@ export const INITIAL_COMMENTS: Record<string, any[]> = {
       isManagerNote: false,
       createdAt: '1404/08/06 14:10',
     },
+    {
+      id: 'comm-ceo-1',
+      taskId: 'task-101',
+      authorId: 'user_ceo',
+      authorName: 'دکتر علیرضا رضوانی (مدیرعامل)',
+      authorRole: 'ceo',
+      content: 'طرح بنرها و هویت بصری کمپین بازبینی شد. تمرکز شعار تبلیغاتی حتماً روی گارانتی اصالت کالا و ارسال فوری باشد. تایید نهایی پس از تست کیفیت صورت گیرد.',
+      isCeoDirective: true,
+      isManagerNote: true,
+      createdAt: '1404/08/07 16:30',
+    },
   ],
   'task-102': [
     {

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Activity,
+  AlertOctagon,
   AlertTriangle,
   ArrowUpRight,
   Award,
@@ -8,10 +9,13 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  Coins,
+  Crown,
   Eye,
   FileSpreadsheet,
   Filter,
   Flame,
+  GitBranch,
   MessageSquare,
   PieChart,
   ShieldAlert,
@@ -29,6 +33,8 @@ interface ManagerDashboardProps {
   onSelectTask: (task: Task) => void;
   onOpenTaskComments: (task: Task) => void;
   onNavigateToReports?: () => void;
+  currentUser?: UserProfile;
+  teamMembers?: UserProfile[];
 }
 
 export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
@@ -36,28 +42,50 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
   onSelectTask,
   onOpenTaskComments,
   onNavigateToReports,
+  currentUser,
+  teamMembers = TEAM_MEMBERS,
 }) => {
   // Multi-Filter State
   const [selectedMemberId, setSelectedMemberId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedTimeRange, setSelectedTimeRange] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [showBlockedOnly, setShowBlockedOnly] = useState(false);
 
   const today = getCurrentJalaliDate();
   const formattedToday = formatJalaliDate(today);
 
+  // Blocked Tasks Calculation
+  const blockedTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      if (!t.dependencyTaskId || t.status === 'completed') return false;
+      const dep = tasks.find((d) => d.id === t.dependencyTaskId);
+      return dep && dep.status !== 'completed';
+    });
+  }, [tasks]);
+
+  // Marketing Budget Calculation
+  const totalBudgetToman = useMemo(() => {
+    return tasks.reduce((sum, t) => sum + (t.budgetToman || 0), 0);
+  }, [tasks]);
+
   // Filter Tasks based on filters
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
+      if (showBlockedOnly) {
+        if (!t.dependencyTaskId || t.status === 'completed') return false;
+        const dep = tasks.find((d) => d.id === t.dependencyTaskId);
+        if (!dep || dep.status === 'completed') return false;
+      }
       // Member filter
       if (selectedMemberId !== 'all' && t.assigneeId !== selectedMemberId) return false;
       // Status filter
       if (selectedStatus !== 'all' && t.status !== selectedStatus) return false;
-      // Time range filter (heuristic based on Jalali due date)
+      // Time range filter
       if (selectedTimeRange === 'today' && t.jalaliDueDate !== formattedToday) return false;
       return true;
     });
-  }, [tasks, selectedMemberId, selectedStatus, selectedTimeRange, formattedToday]);
+  }, [tasks, selectedMemberId, selectedStatus, selectedTimeRange, formattedToday, showBlockedOnly]);
 
   // Overall Status Calculations
   const inProgressCount = filteredTasks.filter((t) => t.status === 'in_progress').length;
@@ -68,7 +96,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
   const totalFiltered = filteredTasks.length;
   const overallEfficiency = totalFiltered > 0 ? Math.round((completedCount / totalFiltered) * 100) : 0;
 
-  // High Priority & Critical Tasks (Core Requirement!)
+  // High Priority & Critical Tasks
   const highPriorityTasks = useMemo(() => {
     return tasks.filter(
       (t) => (t.priority === 'critical' || t.priority === 'high') && t.status !== 'completed'
@@ -77,7 +105,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
   // Team Productivity Calculations
   const memberProductivity = useMemo(() => {
-    return TEAM_MEMBERS.map((member) => {
+    return teamMembers.map((member) => {
       const memberTasks = tasks.filter((t) => t.assigneeId === member.id);
       const done = memberTasks.filter((t) => t.status === 'completed').length;
       const active = memberTasks.filter((t) => t.status === 'in_progress' || t.status === 'review').length;
@@ -95,7 +123,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         totalHours,
       };
     });
-  }, [tasks]);
+  }, [tasks, teamMembers]);
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
@@ -105,10 +133,17 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-black bg-blue-500/20 text-blue-200 border border-blue-400/30 px-3 py-1 rounded-full flex items-center gap-1.5">
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                داشبورد پایش عملکرد و بهره‌وری تیم مارکتینگ RCG
-              </span>
+              {currentUser?.role === 'ceo' ? (
+                <span className="text-xs font-black bg-amber-500 text-slate-950 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md shadow-amber-500/20">
+                  <Crown className="w-4 h-4 text-slate-950" />
+                  پنل نظارت عالیه مدیرعامل هلدینگ (CEO Executive Dashboard)
+                </span>
+              ) : (
+                <span className="text-xs font-black bg-blue-500/20 text-blue-200 border border-blue-400/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                  داشبورد پایش عملکرد و بهره‌وری تیم مارکتینگ RCG
+                </span>
+              )}
             </div>
             <h1 className="text-xl sm:text-2xl font-black mb-1">
               مرکز نظارت و مدیریت کلان وظایف دیجیتال مارکتینگ
@@ -132,7 +167,88 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         </div>
       </div>
 
-      {/* Multi-Filter Bar (Core Requirement!) */}
+      {/* Executive CEO KPI Widget (Blocked, Budget, Approvals) */}
+      <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-slate-900/10 border-2 border-amber-300/80 dark:border-amber-700/60 rounded-3xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-amber-200/60 dark:border-amber-800/40">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-gradient-to-tr from-amber-400 to-yellow-500 text-slate-950 rounded-xl shadow-xs">
+              <Crown className="w-5 h-5 text-slate-950" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                دیده‌بان راهبردی مدیرعامل و مدیریت ارشد (Executive Intelligence)
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                پایش گلوگاه‌ها، وظایف مسدود، بودجه‌های کلان و تاییدات نهایی
+              </p>
+            </div>
+          </div>
+
+          {blockedTasks.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowBlockedOnly(!showBlockedOnly)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                showBlockedOnly
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
+              }`}
+            >
+              <AlertOctagon className="w-3.5 h-3.5" />
+              <span>{toPersianDigits(blockedTasks.length)} تسک مسدود (کلیک برای فیلتر)</span>
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Blocked Tasks */}
+          <div className="p-3.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-0.5">
+                تسک‌های معطل پیش‌نیاز (Blocked)
+              </span>
+              <span className="text-xl font-black text-rose-600 dark:text-rose-400">
+                {toPersianDigits(blockedTasks.length)} وظیفه
+              </span>
+            </div>
+            <div className="p-2 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400">
+              <GitBranch className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Total Budget */}
+          <div className="p-3.5 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/60 rounded-2xl flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-0.5">
+                مجموع بودجه مصوب کمپین‌ها
+              </span>
+              <span className="text-xl font-black text-amber-600 dark:text-amber-400">
+                {toPersianDigits(Math.round(totalBudgetToman / 1_000_000))} میلیون تومان
+              </span>
+            </div>
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+              <Coins className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Pending Approval */}
+          <div className="p-3.5 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-900/60 rounded-2xl flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-0.5">
+                در انتظار تایید و بازبینی مدیر
+              </span>
+              <span className="text-xl font-black text-blue-600 dark:text-blue-400">
+                {toPersianDigits(reviewCount)} وظیفه
+              </span>
+            </div>
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
+              <Clock className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Multi-Filter Bar */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
           <Filter className="w-4 h-4 text-blue-500" />
@@ -146,8 +262,8 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             onChange={(e) => setSelectedMemberId(e.target.value)}
             className="text-xs p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200"
           >
-            <option value="all">همه اعضای تیم ({toPersianDigits(TEAM_MEMBERS.length)})</option>
-            {TEAM_MEMBERS.map((m) => (
+            <option value="all">همه اعضای تیم ({toPersianDigits(teamMembers.length)})</option>
+            {teamMembers.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name} ({m.title.split(' ')[0]})
               </option>
@@ -181,7 +297,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         </div>
       </div>
 
-      {/* 1. نمایش کلی وضعیت وظایف (در حال انجام، تکمیل شده، معلق، برای انجام) */}
+      {/* 1. نمایش کلی وضعیت وظایف */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* In Progress */}
         <div className="bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-900/60 rounded-3xl p-5 shadow-xs">
@@ -248,7 +364,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         </div>
       </div>
 
-      {/* 2. بخش وظایف با اولویت بالا (High Priority & Critical Tasks Section) */}
+      {/* 2. بخش وظایف با اولویت بالا */}
       <div className="bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-950/60 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-rose-100 dark:border-rose-950/80">
           <div className="flex items-center gap-2">
@@ -320,7 +436,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                       <button
                         type="button"
                         onClick={() => onOpenTaskComments(task)}
-                        className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950 dark:text-amber-300 rounded-lg transition"
+                        className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950 dark:text-amber-300 rounded-lg transition cursor-pointer"
                         title="ثبت نظر یا دستور فوری"
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
@@ -328,7 +444,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                       <button
                         type="button"
                         onClick={() => onSelectTask(task)}
-                        className="p-1.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg transition hover:text-blue-600"
+                        className="p-1.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg transition hover:text-blue-600 cursor-pointer"
                         title="مشاهده جزئیات"
                       >
                         <Eye className="w-3.5 h-3.5" />
@@ -342,7 +458,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         )}
       </div>
 
-      {/* 3. نمودار و جدول بازدهی اعضای تیم (Team Productivity & Performance Chart) */}
+      {/* 3. نمودار و جدول بازدهی اعضای تیم */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2">
@@ -416,7 +532,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         </div>
       </div>
 
-      {/* 4. گزارش‌های دوره‌ای قابل تنظیم (Configurable Periodic Reports Widget) */}
+      {/* 4. گزارش‌های دوره‌ای قابل تنظیم */}
       <div className="bg-gradient-to-r from-emerald-900/10 via-teal-900/5 to-slate-900/10 border border-emerald-200 dark:border-emerald-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-emerald-200/60 dark:border-emerald-900/60">
           <div className="flex items-center gap-2">
@@ -439,7 +555,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                 key={p}
                 type="button"
                 onClick={() => setReportPeriod(p)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   reportPeriod === p
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
@@ -475,7 +591,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
               <button
                 type="button"
                 onClick={onNavigateToReports}
-                className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-xs"
+                className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
               >
                 <span>مشاهده و صدور شیت دوره</span>
                 <ArrowUpRight className="w-4 h-4" />

@@ -264,6 +264,7 @@ export const TeamManagementModal: React.FC<TeamManagementModalProps> = ({
                   >
                     <option value="specialist">کارشناس تخصصی</option>
                     <option value="manager">مدیر ارشد مجموعه</option>
+                    <option value="ceo">مدیرعامل هلدینگ (CEO)</option>
                   </select>
                 </div>
               </div>

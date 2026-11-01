@@ -9,6 +9,7 @@ import { sound } from '../lib/sound';
 
 interface KanbanBoardProps {
   tasks: Task[];
+  allTasks?: Task[];
   onSelectTask: (task: Task) => void;
   onUpdateStatus: (taskId: string, newStatus: TaskStatus) => void;
   onQuickAddTask: (status: TaskStatus) => void;
@@ -17,6 +18,7 @@ interface KanbanBoardProps {
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   tasks,
+  allTasks,
   onSelectTask,
   onUpdateStatus,
   onQuickAddTask,
@@ -47,6 +49,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         targetTask &&
         currentUser &&
         currentUser.role !== 'manager' &&
+        currentUser.role !== 'ceo' &&
         targetTask.assigneeId !== currentUser.id
       ) {
         return;
@@ -132,6 +135,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <TaskCard
                       key={task.id}
                       task={task}
+                      allTasks={allTasks || tasks}
                       onSelect={onSelectTask}
                       onStatusChange={onUpdateStatus}
                       currentUser={currentUser}

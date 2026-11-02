@@ -14,6 +14,7 @@ import {
   ListPlus,
   ListTodo,
   Lock,
+  Mail,
   MessageSquare,
   Paperclip,
   Plus,
@@ -117,7 +118,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [dueMonth, setDueMonth] = useState(initialDueParts[1] || '08');
   const [dueDay, setDueDay] = useState(initialDueParts[2] || '15');
 
-  // Reminder Alarm State
+  // Reminder Alarm & Email Alerts State
   const hasInitialReminder = Boolean(task?.reminderDateTime);
   const [hasReminder, setHasReminder] = useState(hasInitialReminder);
   const [reminderHour, setReminderHour] = useState(
@@ -126,6 +127,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [reminderMinute, setReminderMinute] = useState(
     task?.reminderDateTime?.split(' ')[1]?.split(':')[1] || '00'
   );
+  const [sendEmailAlert, setSendEmailAlert] = useState<boolean>(task?.sendEmailAlert ?? true);
 
   // Attachments State
   const [attachments, setAttachments] = useState<TaskAttachment[]>(task?.attachments || []);
@@ -203,6 +205,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       jalaliDueDate: formattedJalaliDue,
       reminderDateTime: reminderFormatted,
       reminderTriggered: false,
+      sendEmailAlert,
       progress: Number(progress),
       estimatedHours: Number(estimatedHours),
       actualHours: Number(actualHours),
@@ -555,9 +558,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   >
                     <option value="todo">تعریف شده / در انتظار اقدام</option>
                     <option value="in_progress">در حال انجام و تولید</option>
-                    <option value="review">بازبینی و تایید مدیر ارشد</option>
+                    <option value="review">نیاز به بازنگری و بررسی</option>
                     <option value="completed">تکمیل شده و انتشاریافته</option>
                   </select>
+                  {status === 'review' && (
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 flex items-center gap-1 font-semibold">
+                      <span>💡 چک‌لیست الزامات اصلاحات و بازنگری به طور خودکار در دیدگاه‌های این وظیفه ثبت می‌شود.</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Assignee */}
@@ -647,8 +655,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
               </div>
 
-              {/* Exact Date & Time Alarm / Reminder */}
-              <div className="p-3.5 bg-amber-50/60 dark:bg-amber-950/20 rounded-2xl border border-amber-200 dark:border-amber-900/40 space-y-2.5">
+              {/* Exact Date & Time Alarm / Smart Reminder & Email Alerts */}
+              <div className="p-3.5 bg-amber-50/60 dark:bg-amber-950/20 rounded-2xl border border-amber-200 dark:border-amber-900/40 space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5 cursor-pointer">
                     <input
@@ -656,57 +664,110 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       checked={hasReminder}
                       disabled={!canEdit}
                       onChange={(e) => setHasReminder(e.target.checked)}
-                      className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4 disabled:opacity-60"
+                      className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4 disabled:opacity-60 cursor-pointer"
                     />
                     <Bell className="w-4 h-4 text-amber-600" />
-                    تعیین هشدار اختصاصی روز و ساعت
+                    تنظیم ساعت دقیق هشدار و یادآوری (Smart Alarm)
                   </label>
                   {hasReminder && (
-                    <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
-                      هشدار با پخش صدا و اعلان مرورگر
+                    <span className="text-[11px] text-amber-700 dark:text-amber-400 font-bold bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-md">
+                      صدا + اعلان مرورگر
                     </span>
                   )}
                 </div>
 
                 {hasReminder && (
-                  <div className="grid grid-cols-2 gap-3 pt-1 animate-in fade-in">
-                    <div>
-                      <label className="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">
-                        ساعت یادآوری
-                      </label>
-                      <select
-                        value={reminderHour}
-                        disabled={!canEdit}
-                        onChange={(e) => setReminderHour(e.target.value)}
-                        className="w-full text-xs p-2 rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-slate-800 dark:text-slate-200 disabled:opacity-60"
-                      >
-                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map((h) => (
-                          <option key={h} value={h}>
-                            ساعت {toPersianDigits(h)}:00
-                          </option>
-                        ))}
-                      </select>
+                  <div className="space-y-2.5 pt-1 border-t border-amber-200/50 dark:border-amber-900/30 animate-in fade-in">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">
+                          ساعت یادآوری
+                        </label>
+                        <select
+                          value={reminderHour}
+                          disabled={!canEdit}
+                          onChange={(e) => setReminderHour(e.target.value)}
+                          className="w-full text-xs p-2 rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-slate-800 dark:text-slate-200 disabled:opacity-60"
+                        >
+                          {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map((h) => (
+                            <option key={h} value={h}>
+                              ساعت {toPersianDigits(h)}:00
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">
+                          دقیقه
+                        </label>
+                        <select
+                          value={reminderMinute}
+                          disabled={!canEdit}
+                          onChange={(e) => setReminderMinute(e.target.value)}
+                          className="w-full text-xs p-2 rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-slate-800 dark:text-slate-200 disabled:opacity-60"
+                        >
+                          {['00', '15', '30', '45'].map((m) => (
+                            <option key={m} value={m}>
+                              {toPersianDigits(m)} دقیقه
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">
-                        دقیقه
-                      </label>
-                      <select
-                        value={reminderMinute}
-                        disabled={!canEdit}
-                        onChange={(e) => setReminderMinute(e.target.value)}
-                        className="w-full text-xs p-2 rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-slate-800 dark:text-slate-200 disabled:opacity-60"
-                      >
-                        {['00', '15', '30', '45'].map((m) => (
-                          <option key={m} value={m}>
-                            {toPersianDigits(m)} دقیقه
-                          </option>
-                        ))}
-                      </select>
+                    {/* Quick Presets */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-amber-800 dark:text-amber-300 font-semibold ml-1">
+                        پیش‌تنظیم سریع:
+                      </span>
+                      {[
+                        { label: 'صبح ۰۹:۰۰', h: '09', m: '00' },
+                        { label: 'ظهر ۱۲:۰۰', h: '12', m: '00' },
+                        { label: 'عصر ۱۶:۰۰', h: '16', m: '00' },
+                        { label: 'شب ۲۰:۰۰', h: '20', m: '00' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          disabled={!canEdit}
+                          onClick={() => {
+                            setReminderHour(preset.h);
+                            setReminderMinute(preset.m);
+                          }}
+                          className={`text-[10px] px-2 py-0.5 rounded-md border transition cursor-pointer ${
+                            reminderHour === preset.h && reminderMinute === preset.m
+                              ? 'bg-amber-500 text-slate-950 font-black border-amber-500'
+                              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-amber-200 dark:border-slate-700 hover:bg-amber-100'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
+
+                {/* Email Alert Toggle */}
+                <div className="pt-2 border-t border-amber-200/50 dark:border-amber-900/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendEmailAlert}
+                      disabled={!canEdit}
+                      onChange={(e) => setSendEmailAlert(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 disabled:opacity-60 cursor-pointer"
+                    />
+                    <Mail className="w-4 h-4 text-blue-500" />
+                    ارسال هشدار و نوتیفیکیشن ایمیلی به مجری
+                  </label>
+
+                  {sendEmailAlert && (
+                    <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 px-2 py-0.5 rounded-full" dir="ltr">
+                      {membersList.find((m) => m.id === assigneeId)?.email || 'کارشناس منتخب'}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Progress Slider */}

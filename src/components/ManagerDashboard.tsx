@@ -7,7 +7,10 @@ import {
   Award,
   BarChart3,
   Calendar,
+  Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Coins,
   Crown,
@@ -16,8 +19,10 @@ import {
   Filter,
   Flame,
   GitBranch,
+  Layers,
   MessageSquare,
   PieChart,
+  Send,
   ShieldAlert,
   Sparkles,
   TrendingUp,
@@ -33,6 +38,8 @@ interface ManagerDashboardProps {
   onSelectTask: (task: Task) => void;
   onOpenTaskComments: (task: Task) => void;
   onNavigateToReports?: () => void;
+  onAddDirectComment?: (taskId: string, commentText: string) => void;
+  onOpenTeamModal?: () => void;
   currentUser?: UserProfile;
   teamMembers?: UserProfile[];
 }
@@ -42,6 +49,8 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
   onSelectTask,
   onOpenTaskComments,
   onNavigateToReports,
+  onAddDirectComment,
+  onOpenTeamModal,
   currentUser,
   teamMembers = TEAM_MEMBERS,
 }) => {
@@ -51,6 +60,30 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
   const [selectedTimeRange, setSelectedTimeRange] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [showBlockedOnly, setShowBlockedOnly] = useState(false);
+
+  // Direct Inline Feedback States
+  const [feedbackInputs, setFeedbackInputs] = useState<Record<string, string>>({});
+  const [sentFeedbackSuccess, setSentFeedbackSuccess] = useState<Record<string, boolean>>({});
+  const [expandedTaskFeedback, setExpandedTaskFeedback] = useState<Record<string, boolean>>({});
+
+  const handleSendFeedback = (taskId: string) => {
+    const text = feedbackInputs[taskId]?.trim();
+    if (!text || !onAddDirectComment) return;
+    onAddDirectComment(taskId, text);
+    setFeedbackInputs((prev) => ({ ...prev, [taskId]: '' }));
+    setSentFeedbackSuccess((prev) => ({ ...prev, [taskId]: true }));
+    setTimeout(() => {
+      setSentFeedbackSuccess((prev) => ({ ...prev, [taskId]: false }));
+    }, 2500);
+  };
+
+  const handleSelectQuickFeedback = (taskId: string, snippet: string) => {
+    setFeedbackInputs((prev) => ({ ...prev, [taskId]: snippet }));
+  };
+
+  const toggleTaskFeedbackExpanded = (taskId: string) => {
+    setExpandedTaskFeedback((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
 
   const today = getCurrentJalaliDate();
   const formattedToday = formatJalaliDate(today);
@@ -124,6 +157,28 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
       };
     });
   }, [tasks, teamMembers]);
+
+  // Marketing Channels Progress & Trend Calculations
+  const channelTrends = useMemo(() => {
+    return CATEGORIES.map((cat) => {
+      const catTasks = tasks.filter((t) => t.category === cat.key);
+      const done = catTasks.filter((t) => t.status === 'completed').length;
+      const active = catTasks.filter((t) => t.status === 'in_progress' || t.status === 'review').length;
+      const todo = catTasks.filter((t) => t.status === 'todo').length;
+      const budget = catTasks.reduce((sum, t) => sum + (t.budgetToman || 0), 0);
+      const rate = catTasks.length > 0 ? Math.round((done / catTasks.length) * 100) : 0;
+
+      return {
+        cat,
+        total: catTasks.length,
+        done,
+        active,
+        todo,
+        budget,
+        rate,
+      };
+    });
+  }, [tasks]);
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
@@ -474,6 +529,17 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
               </p>
             </div>
           </div>
+
+          {onOpenTeamModal && (
+            <button
+              type="button"
+              onClick={onOpenTeamModal}
+              className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>مدیریت و ویرایش اعضا</span>
+            </button>
+          )}
         </div>
 
         {/* Visual Performance Progress Bars */}
@@ -532,7 +598,344 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         </div>
       </div>
 
-      {/* 4. گزارش‌های دوره‌ای قابل تنظیم */}
+      {/* 4. نمودارهای روند پیشرفت و توزیع کانال‌های مارکتینگ */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400 rounded-xl">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                روند پیشرفت و توزیع کانال‌های مارکتینگ (Marketing Channels Trends)
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                توزیع وظایف، نرخ تکمیل و تخصیص بودجه در حوزه‌های تخصصی بازاریابی دیجیتال
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-3 py-1 rounded-full border border-purple-200 dark:border-purple-800">
+            {toPersianDigits(CATEGORIES.length)} کانال فعال
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {channelTrends.map(({ cat, total, done, active, todo, budget, rate }) => (
+            <div
+              key={cat.key}
+              className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-850/60 border border-slate-200 dark:border-slate-800 space-y-3 hover:border-slate-300 dark:hover:border-slate-700 transition"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-3 h-3 rounded-full shadow-xs"
+                    style={{ backgroundColor: cat.colorHex }}
+                  />
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                    {cat.label}
+                  </h3>
+                </div>
+                <span className="text-sm font-black text-slate-900 dark:text-white">
+                  {toPersianDigits(rate)}%
+                </span>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                <div
+                  className="h-full transition-all duration-500"
+                  style={{
+                    width: `${rate}%`,
+                    backgroundColor: cat.colorHex || '#3b82f6',
+                  }}
+                  title={`نرخ تکمیل: ${rate}%`}
+                />
+                <div
+                  className="bg-blue-400 h-full opacity-50 transition-all duration-500"
+                  style={{ width: `${total > 0 ? (active / total) * 100 : 0}%` }}
+                  title="در حال انجام"
+                />
+              </div>
+
+              {/* Stats Breakdown */}
+              <div className="grid grid-cols-3 gap-2 text-[11px] pt-1 border-t border-slate-200 dark:border-slate-800 text-center">
+                <div>
+                  <span className="text-slate-400 block text-[10px]">کل وظایف</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {toPersianDigits(total)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">در حال اجرا</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">
+                    {toPersianDigits(active)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">تکمیل شده</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                    {toPersianDigits(done)}
+                  </span>
+                </div>
+              </div>
+
+              {budget > 0 && (
+                <div className="flex items-center justify-between text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 p-2 rounded-xl">
+                  <span>بودجه مصوب این کانال:</span>
+                  <span className="font-bold">
+                    {toPersianDigits(Math.round(budget / 1_000_000))} م تومان
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 5. پایش وظایف ثبت‌شده و ثبت بازخورد مستقیم مدیریت */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400 rounded-xl">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                وظایف ثبت‌شده و ثبت بازخورد مستقیم مدیریت
+                <span className="text-xs font-normal text-slate-500">
+                  (بدون نیاز به باز کردن مدال)
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                مشاهده وضعیت فعلی هر مسئولیت و ارسال فوری دستور و نظرات مدیریتی به مجریان وظایف
+              </p>
+            </div>
+          </div>
+
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
+            نمایش {toPersianDigits(filteredTasks.length)} از {toPersianDigits(tasks.length)} وظیفه
+          </span>
+        </div>
+
+        {filteredTasks.length === 0 ? (
+          <div className="text-center py-8 text-slate-400 text-xs">
+            هیچ وظیفه‌ای با فیلترهای انتخابی مطابقت ندارد.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredTasks.map((task) => {
+              const cat = CATEGORIES.find((c) => c.key === task.category);
+              const pri = PRIORITIES[task.priority];
+              const isBlocked =
+                task.dependencyTaskId &&
+                task.status !== 'completed' &&
+                tasks.some((d) => d.id === task.dependencyTaskId && d.status !== 'completed');
+
+              const statusLabels: Record<string, { label: string; badgeClass: string }> = {
+                todo: {
+                  label: 'برای انجام',
+                  badgeClass: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                },
+                in_progress: {
+                  label: 'در حال انجام',
+                  badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300',
+                },
+                review: {
+                  label: 'نیاز به بازنگری',
+                  badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300',
+                },
+                completed: {
+                  label: 'تکمیل شده',
+                  badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300',
+                },
+              };
+
+              const stInfo = statusLabels[task.status] || {
+                label: task.status,
+                badgeClass: 'bg-slate-100 text-slate-700',
+              };
+
+              return (
+                <div
+                  key={task.id}
+                  className={`p-4 rounded-2xl border transition ${
+                    isBlocked
+                      ? 'border-rose-300 dark:border-rose-900 bg-rose-50/20'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/40 hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
+                >
+                  {/* Task Header & Badges */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className="text-[10px] font-bold px-2.5 py-0.5 rounded-md text-white shadow-2xs"
+                        style={{ backgroundColor: cat?.colorHex }}
+                      >
+                        {cat?.label}
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${stInfo.badgeClass}`}>
+                        {stInfo.label}
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${pri.bgClass} ${pri.textClass}`}>
+                        {pri.label}
+                      </span>
+                      {isBlocked && (
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-rose-600 text-white flex items-center gap-1">
+                          <AlertOctagon className="w-3 h-3" />
+                          مسدود توسط پیش‌نیاز
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                      <span>سررسید: <b>{toPersianDigits(task.jalaliDueDate)}</b></span>
+                      {task.budgetToman ? (
+                        <span className="text-amber-600 dark:text-amber-400 font-bold">
+                          {toPersianDigits(Math.round(task.budgetToman / 1_000_000))} م تومان
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* Task Title & Details */}
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-3">
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                        {task.title}
+                      </h3>
+                      {task.description && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                          {task.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-4 self-stretch md:self-auto justify-between">
+                      {/* Assignee Card */}
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={task.assigneeAvatar}
+                          alt={task.assigneeName}
+                          className="w-7 h-7 rounded-lg object-cover border border-slate-300 dark:border-slate-700"
+                        />
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                          {task.assigneeName}
+                        </span>
+                      </div>
+
+                      {/* Progress Mini Bar */}
+                      <div className="w-24">
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
+                          <span>پیشرفت</span>
+                          <span className="font-bold text-blue-600 dark:text-blue-400">
+                            {toPersianDigits(task.progress)}%
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="bg-blue-600 h-full rounded-full"
+                            style={{ width: `${task.progress}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Action View Task */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onSelectTask(task)}
+                          className="p-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                          title="مشاهده جزئیات کامل"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onOpenTaskComments(task)}
+                          className="p-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-amber-600 border border-slate-200 dark:border-slate-700 transition cursor-pointer relative"
+                          title="تاریخچه دیدگاه‌ها"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          {(task.commentsCount || 0) > 0 && (
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-blue-500 text-white rounded-full text-[8px] flex items-center justify-center font-bold">
+                              {task.commentsCount}
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Direct Inline Feedback Input Row */}
+                  <div className="pt-2.5 border-t border-slate-200/70 dark:border-slate-850 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-1">
+                        <MessageSquare className="w-3 h-3" />
+                        ثبت سریع بازخورد یا دستور مدیریتی به مجری:
+                      </span>
+                      {sentFeedbackSuccess[task.id] && (
+                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 animate-in fade-in">
+                          <Check className="w-3.5 h-3.5" />
+                          بازخورد شما با موفقیت ثبت شد
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Quick suggestion chips */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {[
+                        '✅ تایید شد، طبق برنامه اقدام شود',
+                        '⚠️ نیاز به اصلاح متن بریف و بررسی ROI',
+                        '⚡ اولویت فوری - پیگیری تا پایان وقت اداری',
+                        '📊 لطفا نمونه اتود و شاخص‌ها ارسال گردد',
+                      ].map((snippet) => (
+                        <button
+                          key={snippet}
+                          type="button"
+                          onClick={() => handleSelectQuickFeedback(task.id, snippet)}
+                          className="text-[10px] px-2 py-1 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/50 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        >
+                          {snippet}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Input Field + Submit Button */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={feedbackInputs[task.id] || ''}
+                        onChange={(e) =>
+                          setFeedbackInputs((prev) => ({ ...prev, [task.id]: e.target.value }))
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSendFeedback(task.id);
+                          }
+                        }}
+                        placeholder="متن بازخورد، دستور مدیریتی یا راهنمایی برای مجری این وظیفه..."
+                        className="flex-1 text-xs px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSendFeedback(task.id)}
+                        disabled={!feedbackInputs[task.id]?.trim()}
+                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs disabled:cursor-not-allowed"
+                      >
+                        <span>ارسال</span>
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 6. گزارش‌های دوره‌ای قابل تنظیم */}
       <div className="bg-gradient-to-r from-emerald-900/10 via-teal-900/5 to-slate-900/10 border border-emerald-200 dark:border-emerald-900/40 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-emerald-200/60 dark:border-emerald-900/60">
           <div className="flex items-center gap-2">

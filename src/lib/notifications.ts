@@ -60,3 +60,36 @@ export function sendTaskBrowserNotification(
     return null;
   }
 }
+
+export function sendGeneralBrowserNotification(
+  title: string,
+  body: string,
+  onClick?: () => void
+): Notification | null {
+  if (!isNotificationSupported() || Notification.permission !== 'granted') {
+    return null;
+  }
+
+  try {
+    const notification = new Notification(title, {
+      body,
+      dir: 'rtl',
+      lang: 'fa',
+      tag: `rcg-alert-${Date.now()}`,
+      silent: false,
+    });
+
+    notification.onclick = () => {
+      try {
+        window.focus();
+      } catch (e) {}
+      if (onClick) onClick();
+      notification.close();
+    };
+
+    return notification;
+  } catch (err) {
+    console.error('Failed to trigger native notification:', err);
+    return null;
+  }
+}

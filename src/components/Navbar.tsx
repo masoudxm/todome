@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Task, TaskCategory, TaskPriority, UserProfile } from '../types';
 import { CATEGORIES, PRIORITIES, TEAM_MEMBERS } from '../lib/constants';
+import { SystemAlert } from './ToastNotification';
 import {
   formatJalaliDate,
   getCurrentJalaliDate,
@@ -39,6 +40,7 @@ interface NavbarProps {
   viewMode?: 'desktop' | 'mobile';
   onToggleViewMode?: () => void;
   teamMembers?: UserProfile[];
+  systemAlerts?: SystemAlert[];
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -57,8 +59,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   viewMode = 'desktop',
   onToggleViewMode,
   teamMembers = TEAM_MEMBERS,
+  systemAlerts = [],
 }) => {
   const [showRemindersPopover, setShowRemindersPopover] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'alerts' | 'reminders'>('all');
   const [showFilterPills, setShowFilterPills] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
@@ -66,6 +70,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const today = getCurrentJalaliDate();
   const formattedToday = formatJalaliDate(today, { format: 'long' });
+
+  const totalNotifs = upcomingReminders.length + systemAlerts.length;
 
   const hasActiveFilters =
     selectedCategory !== 'all' || selectedPriority !== 'all' || selectedAssignee !== 'all';
@@ -214,22 +220,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={() => setShowRemindersPopover(!showRemindersPopover)}
               className="relative p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
-              title="هشدارهای زمان‌بندی شده"
+              title="مرکز اعلان‌ها و هشدارهای سیستم"
             >
               <Bell className="w-4 h-4" />
-              {upcomingReminders.length > 0 && (
+              {totalNotifs > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white rounded-full text-[9px] font-black flex items-center justify-center animate-pulse">
-                  {toPersianDigits(upcomingReminders.length)}
+                  {toPersianDigits(totalNotifs)}
                 </span>
               )}
             </button>
 
             {showRemindersPopover && (
-              <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-72 sm:w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-4 z-50 text-right animate-in fade-in">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 mb-2">
+              <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-4 z-50 text-right animate-in fade-in">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 mb-2.5">
                   <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                     <Bell className="w-3.5 h-3.5 text-amber-500" />
-                    هشدارهای فعال سررسید و کمپین‌ها
+                    مرکز اعلان‌ها و رویدادهای سیستم ({toPersianDigits(totalNotifs)})
                   </h4>
                   <button
                     type="button"
@@ -240,30 +246,102 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {upcomingReminders.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-4">
-                      هیچ هشدار فعالی برای وظایف تنظیم نشده است.
+                {/* Filter Tabs */}
+                <div className="flex items-center gap-1 mb-2.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('all')}
+                    className={`flex-1 py-1 rounded-lg transition cursor-pointer ${
+                      activeTab === 'all'
+                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    همه ({toPersianDigits(totalNotifs)})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('alerts')}
+                    className={`flex-1 py-1 rounded-lg transition cursor-pointer ${
+                      activeTab === 'alerts'
+                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    رویدادها ({toPersianDigits(systemAlerts.length)})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('reminders')}
+                    className={`flex-1 py-1 rounded-lg transition cursor-pointer ${
+                      activeTab === 'reminders'
+                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    سررسیدها ({toPersianDigits(upcomingReminders.length)})
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-0.5">
+                  {totalNotifs === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-6">
+                      هیچ اعلان یا هشدار فعالی در سیستم ثبت نشده است.
                     </p>
                   ) : (
-                    upcomingReminders.map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => {
-                          onSelectTask(task);
-                          setShowRemindersPopover(false);
-                        }}
-                        className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 hover:bg-amber-50 dark:hover:bg-amber-950/30 border border-slate-100 dark:border-slate-700/60 cursor-pointer transition"
-                      >
-                        <h5 className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {task.title}
-                        </h5>
-                        <div className="flex items-center justify-between text-[10px] text-amber-600 dark:text-amber-400 mt-1">
-                          <span>زمان هشدار: {toPersianDigits(task.reminderDateTime || '')}</span>
-                          <span>مسئول: {task.assigneeName}</span>
-                        </div>
-                      </div>
-                    ))
+                    <>
+                      {/* Live System Alerts (Comments, Status, Tasks, Directives) */}
+                      {(activeTab === 'all' || activeTab === 'alerts') &&
+                        systemAlerts.map((alert) => (
+                          <div
+                            key={alert.id}
+                            onClick={() => {
+                              if (alert.taskId) onSelectTask({ id: alert.taskId } as any);
+                              setShowRemindersPopover(false);
+                            }}
+                            className={`p-2.5 rounded-xl border text-right transition cursor-pointer ${
+                              alert.type === 'ceo'
+                                ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800'
+                                : alert.type === 'warning'
+                                ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40'
+                                : 'bg-slate-50 dark:bg-slate-800/70 border-slate-100 dark:border-slate-800 hover:border-blue-400'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                {alert.title}
+                              </span>
+                              <span className="text-[10px] text-slate-400 shrink-0">
+                                {toPersianDigits(alert.jalaliTime)}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2">
+                              {alert.message}
+                            </p>
+                          </div>
+                        ))}
+
+                      {/* Scheduled Reminders */}
+                      {(activeTab === 'all' || activeTab === 'reminders') &&
+                        upcomingReminders.map((task) => (
+                          <div
+                            key={task.id}
+                            onClick={() => {
+                              onSelectTask(task);
+                              setShowRemindersPopover(false);
+                            }}
+                            className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 hover:bg-amber-50 dark:hover:bg-amber-950/30 border border-slate-100 dark:border-slate-700/60 cursor-pointer transition"
+                          >
+                            <h5 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              ⏰ سررسید: {task.title}
+                            </h5>
+                            <div className="flex items-center justify-between text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+                              <span>زمان هشدار: {toPersianDigits(task.reminderDateTime || '')}</span>
+                              <span>مسئول: {task.assigneeName}</span>
+                            </div>
+                          </div>
+                        ))}
+                    </>
                   )}
                 </div>
               </div>

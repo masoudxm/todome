@@ -4,6 +4,7 @@ import {
   Clock,
   CornerDownLeft,
   Crown,
+  ListChecks,
   MessageSquare,
   Send,
   ShieldCheck,
@@ -115,6 +116,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
           comments.map((comment) => {
             const isCeo = comment.isCeoDirective || comment.authorRole === 'ceo';
             const isManager = comment.isManagerNote || comment.authorRole === 'manager';
+            const isChecklist = Boolean(comment.isRevisionChecklist);
 
             return (
               <div
@@ -122,6 +124,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                 className={`p-3.5 rounded-2xl border transition ${
                   isCeo
                     ? 'bg-gradient-to-r from-amber-100/90 via-amber-50/70 to-yellow-100/60 dark:from-amber-950/50 dark:via-yellow-950/30 dark:to-slate-900 border-amber-400 dark:border-amber-600/80 shadow-md ring-1 ring-amber-400/30'
+                    : isChecklist
+                    ? 'bg-linear-to-r from-indigo-50/90 via-purple-50/60 to-blue-50/70 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-slate-900 border-indigo-400 dark:border-indigo-600/80 shadow-sm ring-1 ring-indigo-400/20'
                     : isManager
                     ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700/60 shadow-xs'
                     : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/60'
@@ -149,6 +153,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                           <span className="text-[10px] bg-linear-to-r from-amber-500 to-yellow-600 text-slate-950 font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
                             <Crown className="w-3 h-3 text-slate-950" />
                             دستور مستقیم مدیرعامل (CEO)
+                          </span>
+                        ) : isChecklist ? (
+                          <span className="text-[10px] bg-linear-to-r from-indigo-600 to-purple-600 text-white font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs">
+                            <ListChecks className="w-3 h-3" />
+                            چک‌لیست خودکار الزامات بازنگری
                           </span>
                         ) : isManager ? (
                           <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-md font-bold flex items-center gap-0.5 shadow-2xs">

@@ -39,6 +39,7 @@ export interface TaskComment {
   content: string;
   isManagerNote?: boolean;
   isCeoDirective?: boolean;
+  isRevisionChecklist?: boolean;
   createdAt: string;
 }
 
@@ -58,6 +59,7 @@ export interface Task {
   dueDate?: string; // ISO string
   reminderDateTime?: string; // e.g. "1404/08/15 14:30"
   reminderTriggered?: boolean;
+  sendEmailAlert?: boolean;
   progress: number; // 0 to 100
   estimatedHours: number;
   actualHours: number;
@@ -73,18 +75,39 @@ export interface Task {
   googleCalendarEventId?: string;
 }
 
+export interface UserActivityItem {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  targetTitle: string;
+  timestampJalali: string;
+  type: 'task_created' | 'status_changed' | 'comment_added' | 'task_completed';
+}
+
+export interface UserNotificationPreferences {
+  enableSound: boolean;
+  enableBrowserPush: boolean;
+  enableEmailAlerts: boolean;
+  emailAddress?: string;
+  reminderMinutesBefore?: number;
+}
+
 export interface UserProfile {
   id: string;
   username: string;
   password?: string;
   name: string;
   email: string;
+  phone?: string;
   role: UserRole;
   avatar: string;
   department: string;
   title: string;
   isDefault?: boolean;
   createdAt?: string;
+  themePreference?: 'dark' | 'light';
+  notificationPreferences?: UserNotificationPreferences;
 }
 
 export interface MarketingReport {

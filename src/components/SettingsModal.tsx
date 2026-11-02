@@ -8,6 +8,7 @@ import {
   Settings,
   Shield,
   Sun,
+  Trash2,
   Volume2,
   X,
 } from 'lucide-react';
@@ -19,6 +20,7 @@ interface SettingsModalProps {
   isDark: boolean;
   onToggleTheme: () => void;
   onResetData: () => void;
+  onResetToEmpty: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -27,6 +29,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isDark,
   onToggleTheme,
   onResetData,
+  onResetToEmpty,
 }) => {
   if (!isOpen) return null;
 
@@ -158,24 +161,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </p>
           </div>
 
-          {/* Reset Data */}
-          <div className="flex items-center justify-between p-3.5 bg-rose-50/60 dark:bg-rose-950/20 rounded-2xl border border-rose-200 dark:border-rose-900/40">
-            <div>
-              <span className="text-xs font-bold text-rose-800 dark:text-rose-300 block">
-                بازنشانی داده‌های نمونه اولیه
-              </span>
-              <span className="text-[11px] text-rose-600/80 dark:text-rose-400">
-                بازگرداندن تسک‌ها به حالت پیش‌فرض اولیه
-              </span>
+          {/* Reset Options */}
+          <div className="space-y-2.5">
+            {/* Clear All Data - Empty Board (بدون وظایف) */}
+            <div className="flex items-center justify-between p-3.5 bg-rose-50/80 dark:bg-rose-950/30 rounded-2xl border-2 border-rose-300 dark:border-rose-900/60 shadow-xs">
+              <div>
+                <span className="text-xs font-black text-rose-900 dark:text-rose-200 flex items-center gap-1.5">
+                  <Trash2 className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                  حذف تمام اطلاعات و بازنشانی بدون وظایف (تخته خام)
+                </span>
+                <span className="text-[11px] text-rose-700/80 dark:text-rose-300 mt-0.5 block">
+                  پاکسازی کامل وظایف، کامنت‌ها و گزارش‌ها برای شروع صفر از ابتدا
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onResetToEmpty}
+                className="flex items-center gap-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs shrink-0 cursor-pointer"
+                title="پاکسازی کامل تمام اطلاعات و شروع با تخته خالی"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>پاکسازی کامل</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={onResetData}
-              className="flex items-center gap-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>بازنشانی</span>
-            </button>
+
+            {/* Restore Sample Demo Tasks */}
+            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <div>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                  بازگرداندن وظایف و داده‌های نمونه اولیه
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  بازیابی ۶ وظیفه آزمایشی مارکتینگ RCG برای تست امکانات
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onResetData}
+                className="flex items-center gap-1 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition shadow-2xs shrink-0 cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>داده‌های نمونه</span>
+              </button>
+            </div>
           </div>
         </div>
 

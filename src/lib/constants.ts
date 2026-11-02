@@ -151,8 +151,8 @@ export const STATUS_COLUMNS: { key: TaskStatus; label: string; description: stri
   },
   {
     key: 'review',
-    label: 'در انتظار تایید مدیریت',
-    description: 'تکمیل اولیه، آماده بررسی مدیر ارشد',
+    label: 'نیاز به بازنگری و بررسی',
+    description: 'تکمیل اولیه، آماده بررسی اصلاحات و بازنگری',
     colorClass: 'border-t-amber-500',
     badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300',
   },
@@ -164,6 +164,14 @@ export const STATUS_COLUMNS: { key: TaskStatus; label: string; description: stri
     badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300',
   },
 ];
+
+export const DEFAULT_REVISION_CHECKLIST = `📋 چک‌لیست اصلاحات و الزامات بازنگری:
+◻️ تطابق کامل با هویت بصری و خط‌مشی برند هلدینگ RCG
+◻️ بازبینی متون، لحن کپی‌رایتینگ، نگارش فارسی و صحت کال‌تو‌اکشن‌ها (CTA)
+◻️ بهینه‌سازی فرمت، ابعاد استاندارد و حجم فایل‌های خروجی
+◻️ بررسی و اعتبارسنجی کدهای رهگیری کمپین، UTM و لینک‌های فرود
+◻️ تطابق هزینه‌ها و بودجه با اهداف کمپین و سرفصل مالی
+◻️ ثبت مستندات نهایی و اعلام آمادگی جهت تایید مدیر ارشد/مدیرعامل`;
 
 export const TEAM_MEMBERS: UserProfile[] = [
   {

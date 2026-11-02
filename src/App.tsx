@@ -21,7 +21,7 @@ import {
   TaskStatus,
   UserProfile,
 } from './types';
-import { INITIAL_COMMENTS, INITIAL_TASKS, TEAM_MEMBERS } from './lib/constants';
+import { DEFAULT_REVISION_CHECKLIST, INITIAL_COMMENTS, INITIAL_TASKS, TEAM_MEMBERS } from './lib/constants';
 import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
 import {
   exportReportToGoogleSheets,
@@ -47,9 +47,11 @@ import { MarketingToolsModal } from './components/MarketingToolsModal';
 import { LoginModal } from './components/LoginModal';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import { ReminderNotification } from './components/ReminderNotification';
+import { ToastNotification, SystemAlert } from './components/ToastNotification';
 import { sound } from './lib/sound';
 import { getCurrentJalaliDate, formatJalaliDate, toEnglishDigits } from './lib/jalali';
-import { sendTaskBrowserNotification } from './lib/notifications';
+import { sendGeneralBrowserNotification, sendTaskBrowserNotification } from './lib/notifications';
+import { sendTaskEmailNotification } from './lib/emailNotification';
 
 export default function App() {
   // Theme State
@@ -125,6 +127,14 @@ export default function App() {
     let updated: UserProfile[];
     if (exists) {
       updated = teamMembers.map((m) => (m.id === member.id ? member : m));
+      // Sync tasks if assignee name or avatar changed
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.assigneeId === member.id
+            ? { ...t, assigneeName: member.name, assigneeAvatar: member.avatar }
+            : t
+        )
+      );
     } else {
       updated = [...teamMembers, member];
     }
@@ -137,8 +147,9 @@ export default function App() {
 
   const handleDeleteMember = (memberId: string) => {
     const fallbackManager =
-      teamMembers.find((m) => m.role === 'manager' && m.id !== memberId) || TEAM_MEMBERS[0];
-    
+      teamMembers.find((m) => (m.role === 'manager' || m.role === 'ceo') && m.id !== memberId) ||
+      TEAM_MEMBERS[0];
+
     // Reassign orphan tasks to senior manager
     setTasks((prev) =>
       prev.map((t) =>
@@ -312,16 +323,115 @@ export default function App() {
     return () => unsub();
   }, [googleUser]);
 
-  // Reset Data Handler
+  // In-App Alert Toasts & Notification State
+  const [systemAlerts, setSystemAlerts] = useState<SystemAlert[]>([]);
+
+  const triggerSystemAlert = (
+    title: string,
+    message: string,
+    type: 'success' | 'info' | 'warning' | 'alert' | 'ceo' = 'info',
+    taskId?: string
+  ) => {
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const newAlert: SystemAlert = {
+      id: `alert-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      title,
+      message,
+      type,
+      jalaliTime: timeStr,
+      taskId,
+    };
+
+    setSystemAlerts((prev) => [newAlert, ...prev.slice(0, 15)]);
+
+    // Audio chime based on importance
+    if (type === 'ceo' || type === 'alert' || type === 'warning') {
+      sound.playAlarmChime();
+    } else {
+      sound.playSuccessSound();
+    }
+
+    // Native Browser Push Notification
+    sendGeneralBrowserNotification(
+      title,
+      message,
+      taskId
+        ? () => {
+            const target = tasks.find((t) => t.id === taskId);
+            if (target) handleSelectTask(target);
+          }
+        : undefined
+    );
+  };
+
+  const handleDismissAlert = (alertId: string) => {
+    setSystemAlerts((prev) => prev.filter((a) => a.id !== alertId));
+  };
+
+  // Reset Data to Clean Slate (Without Tasks - بدون وظایف)
+  const handleResetToEmpty = () => {
+    setConfirmationModal({
+      isOpen: true,
+      title: 'پاکسازی کامل تمام اطلاعات و شروع با تخته خالی؟',
+      message:
+        'آیا از حذف تمام وظایف، نظرات و مطالب وارد شده اطمینان دارید؟ با تایید شما، تمام وظایف پاک شده و سامانه به صورت کاملاً خام (صفر وظیفه) آماده ورود اطلاعات جدید خواهد شد.',
+      isDestructive: true,
+      confirmLabel: 'بله، حذف همه و شروع با تخته خالی',
+      onConfirm: async () => {
+        setTasks([]);
+        setCommentsMap({});
+        setReports([]);
+        localStorage.removeItem('rcg_tasks');
+        localStorage.removeItem('rcg_comments');
+        localStorage.removeItem('rcg_reports');
+
+        try {
+          if (auth.currentUser) {
+            for (const t of tasks) {
+              await deleteDoc(doc(db, 'tasks', t.id)).catch(() => {});
+            }
+          }
+        } catch (e) {
+          console.warn('Cleared remote tasks locally');
+        }
+
+        setIsSettingsModalOpen(false);
+        setConfirmationModal((prev) => ({ ...prev, isOpen: false }));
+        triggerSystemAlert(
+          '🧹 پاکسازی کامل اطلاعات سامانه',
+          'تمامی وظایف و مطالب با موفقیت حذف شدند و سامانه به حالت کاملاً خام (بدون وظیفه) بازنشانی گردید.',
+          'alert'
+        );
+      },
+    });
+  };
+
+  // Reset Data to Default Demo Sample Tasks (با داده‌های نمونه)
   const handleResetData = () => {
-    setTasks(INITIAL_TASKS);
-    setCommentsMap(INITIAL_COMMENTS);
-    setTeamMembers(TEAM_MEMBERS);
-    localStorage.removeItem('rcg_tasks');
-    localStorage.removeItem('rcg_comments');
-    localStorage.removeItem('rcg_team_members');
-    sound.playSuccessSound();
-    setIsSettingsModalOpen(false);
+    setConfirmationModal({
+      isOpen: true,
+      title: 'بازنشانی به داده‌های نمونه پیش‌فرض؟',
+      message:
+        'آیا می‌خواهید داده‌های تستی و ۶ وظیفه نمونه مارکتینگ هلدینگ RCG مجدداً بارگذاری شوند؟',
+      isDestructive: false,
+      confirmLabel: 'بله، بارگذاری داده‌های نمونه',
+      onConfirm: () => {
+        setTasks(INITIAL_TASKS);
+        setCommentsMap(INITIAL_COMMENTS);
+        setTeamMembers(TEAM_MEMBERS);
+        localStorage.removeItem('rcg_tasks');
+        localStorage.removeItem('rcg_comments');
+        localStorage.removeItem('rcg_team_members');
+        setIsSettingsModalOpen(false);
+        setConfirmationModal((prev) => ({ ...prev, isOpen: false }));
+        triggerSystemAlert(
+          '🔄 بازیابی داده‌های نمونه اولیه',
+          '۶ وظیفه نمونه و سناریوهای تستی مارکتینگ با موفقیت بازیابی شدند.',
+          'success'
+        );
+      },
+    });
   };
 
   // Confirmation Modal State (MANDATORY for Workspace Destructive/Mutating operations)
@@ -407,14 +517,59 @@ export default function App() {
     setIsTaskModalOpen(true);
   };
 
+  const triggerRevisionChecklistComment = (taskId: string, actor: UserProfile) => {
+    const todayJalali = formatJalaliDate(getCurrentJalaliDate(), { withTime: true });
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const fullCreatedAt = `${todayJalali} ${timeStr}`;
+
+    const autoChecklistComment: TaskComment = {
+      id: `comm-rev-${Date.now()}`,
+      taskId,
+      authorId: actor.id,
+      authorName: `${actor.name} (سیستم نظارتی RCG)`,
+      authorAvatar: actor.avatar,
+      authorRole: actor.role,
+      isRevisionChecklist: true,
+      isManagerNote: actor.role === 'manager',
+      isCeoDirective: actor.role === 'ceo',
+      content: DEFAULT_REVISION_CHECKLIST,
+      createdAt: fullCreatedAt,
+    };
+
+    setCommentsMap((prev) => {
+      const existing = prev[taskId] || [];
+      const updated = [autoChecklistComment, ...existing];
+      return {
+        ...prev,
+        [taskId]: updated,
+      };
+    });
+
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId ? { ...t, commentsCount: (t.commentsCount || 0) + 1 } : t
+      )
+    );
+
+    try {
+      if (auth.currentUser) {
+        setDoc(doc(db, 'comments', autoChecklistComment.id), autoChecklistComment);
+      }
+    } catch (e) {
+      // Handled in localStorage via useEffect
+    }
+  };
+
   const handleSaveTask = async (taskData: Partial<Task>) => {
     if (!editingTask) return;
 
-    // RBAC Check: Only creator, assignee, or senior manager can modify task
+    // RBAC Check: Only creator, assignee, senior manager, or CEO can modify task
     const isNew = !tasks.some((t) => t.id === editingTask.id);
     if (
       !isNew &&
       currentUser.role !== 'manager' &&
+      currentUser.role !== 'ceo' &&
       editingTask.assigneeId !== currentUser.id &&
       editingTask.creatorId !== currentUser.id
     ) {
@@ -434,6 +589,40 @@ export default function App() {
       setTasks(tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
     }
 
+    // Automatically trigger revision checklist if status changed to 'review'
+    if (taskData.status === 'review' && (isNew || editingTask.status !== 'review')) {
+      triggerRevisionChecklistComment(updatedTask.id, currentUser);
+    }
+
+    if (isNew) {
+      triggerSystemAlert(
+        '✨ ایجاد وظیفه جدید',
+        `وظیفه «${updatedTask.title}» تعریف و به «${updatedTask.assigneeName}» محول گردید.`,
+        'success',
+        updatedTask.id
+      );
+    } else {
+      triggerSystemAlert(
+        '✏️ به‌روزرسانی وظیفه',
+        `مشخصات و تغییرات وظیفه «${updatedTask.title}» با موفقیت ذخیره شد.`,
+        'info',
+        updatedTask.id
+      );
+    }
+
+    // Send email alert to assignee if enabled
+    if (updatedTask.sendEmailAlert) {
+      const targetAssignee = teamMembers.find((m) => m.id === updatedTask.assigneeId);
+      if (targetAssignee) {
+        sendTaskEmailNotification(
+          updatedTask,
+          targetAssignee,
+          currentUser.name,
+          isNew ? 'assigned' : 'reminder'
+        );
+      }
+    }
+
     try {
       if (auth.currentUser) {
         await setDoc(doc(db, 'tasks', updatedTask.id), updatedTask);
@@ -449,7 +638,12 @@ export default function App() {
 
   const handleDeleteTask = (taskId: string) => {
     const target = tasks.find((t) => t.id === taskId);
-    if (target && currentUser.role !== 'manager' && target.creatorId !== currentUser.id) {
+    if (
+      target &&
+      currentUser.role !== 'manager' &&
+      currentUser.role !== 'ceo' &&
+      target.creatorId !== currentUser.id
+    ) {
       alert('تنها ایجادکننده وظیفه و مدیر ارشد مجاز به حذف وظیفه هستند.');
       return;
     }
@@ -472,6 +666,11 @@ export default function App() {
         setIsTaskModalOpen(false);
         setEditingTask(null);
         setConfirmationModal((prev) => ({ ...prev, isOpen: false }));
+        triggerSystemAlert(
+          '🗑️ حذف وظیفه',
+          `وظیفه «${target?.title || ''}» با موفقیت از سیستم حذف گردید.`,
+          'warning'
+        );
       },
     });
   };
@@ -481,11 +680,14 @@ export default function App() {
     if (
       targetTask &&
       currentUser.role !== 'manager' &&
+      currentUser.role !== 'ceo' &&
       targetTask.assigneeId !== currentUser.id
     ) {
       alert('شما تنها مجاز به تغییر وضعیت وظایف محوله به خودتان هستید.');
       return;
     }
+
+    const previousStatus = targetTask?.status;
 
     setTasks((prev) =>
       prev.map((t) => {
@@ -501,6 +703,55 @@ export default function App() {
         return t;
       })
     );
+
+    // Automatically trigger revision checklist comment when moving to 'review'
+    if (newStatus === 'review' && previousStatus !== 'review') {
+      triggerRevisionChecklistComment(taskId, currentUser);
+    }
+
+    // Trigger System Alert & Notification for status change
+    const statusLabels: Record<TaskStatus, string> = {
+      todo: 'برای انجام',
+      in_progress: 'در حال انجام',
+      review: 'نیاز به بازنگری و بررسی',
+      completed: 'تکمیل شده',
+    };
+    const taskTitle = targetTask ? targetTask.title : 'وظیفه';
+    const newStatusLabel = statusLabels[newStatus] || newStatus;
+
+    if (newStatus === 'completed') {
+      triggerSystemAlert(
+        '🎉 تکمیل موفقیت‌آمیز وظیفه',
+        `وظیفه «${taskTitle}» با موفقیت تکمیل شد!`,
+        'success',
+        taskId
+      );
+
+      // Check if this unblocks any other tasks!
+      const unblocked = tasks.filter((t) => t.dependencyTaskId === taskId);
+      unblocked.forEach((ub) => {
+        triggerSystemAlert(
+          '🔓 رفع مسدودی وظیفه',
+          `پیش‌نیاز وظیفه «${ub.title}» تکمیل شد؛ این کار اکنون آزاد و قابل انجام است!`,
+          'alert',
+          ub.id
+        );
+      });
+    } else if (newStatus === 'review') {
+      triggerSystemAlert(
+        '📋 ارجاع به بازنگری و بررسی',
+        `وظیفه «${taskTitle}» در وضعیت 'نیاز به بازنگری' قرار گرفت و چک‌لیست اصلاحات ثبت شد.`,
+        'warning',
+        taskId
+      );
+    } else {
+      triggerSystemAlert(
+        '🔄 تغییر وضعیت وظیفه',
+        `وضعیت «${taskTitle}» به «${newStatusLabel}» تغییر یافت.`,
+        'info',
+        taskId
+      );
+    }
 
     try {
       if (auth.currentUser) {
@@ -539,6 +790,27 @@ export default function App() {
     setTasks((prev) =>
       prev.map((t) => (t.id === targetTaskId ? { ...t, commentsCount: updated.length } : t))
     );
+
+    // Trigger Notification Alert
+    const isCeo = commentData.isCeoDirective || commentData.authorRole === 'ceo';
+    const targetTask = tasks.find((t) => t.id === targetTaskId);
+    const taskName = targetTask ? `در وظیفه «${targetTask.title}»` : '';
+
+    if (isCeo) {
+      triggerSystemAlert(
+        '👑 دستور مستقیم مدیرعامل (CEO)',
+        `دستور جدید مدیرعامل ${taskName} با اولویت عالی ثبت گردید.`,
+        'ceo',
+        targetTaskId
+      );
+    } else {
+      triggerSystemAlert(
+        '💬 ثبت دیدگاه جدید',
+        `${commentData.authorName} دیدگاهی ${taskName} ثبت کرد.`,
+        'info',
+        targetTaskId
+      );
+    }
   };
 
   const handleDeleteComment = (commentId: string) => {
@@ -554,6 +826,51 @@ export default function App() {
 
     setTasks((prev) =>
       prev.map((t) => (t.id === targetTaskId ? { ...t, commentsCount: updated.length } : t))
+    );
+  };
+
+  // Direct Inline Feedback from Executive Dashboard
+  const handleDirectComment = (taskId: string, commentText: string) => {
+    const isCeo = currentUser.role === 'ceo';
+    const isManager = currentUser.role === 'manager';
+    handleAddComment({
+      taskId,
+      authorId: currentUser.id,
+      authorName: currentUser.name,
+      authorAvatar: currentUser.avatar,
+      authorRole: currentUser.role,
+      content: commentText,
+      isCeoDirective: isCeo,
+      isManagerNote: isManager && !isCeo,
+    });
+
+    const targetTask = tasks.find((t) => t.id === taskId);
+    const assignee = teamMembers.find((m) => m.id === targetTask?.assigneeId);
+    if (targetTask && assignee) {
+      sendTaskEmailNotification(
+        targetTask,
+        assignee,
+        currentUser.name,
+        isCeo ? 'directive' : 'comment',
+        commentText
+      );
+    }
+  };
+
+  // User Profile Settings & Preferences Update
+  const handleUpdateUserProfile = (updatedUser: UserProfile) => {
+    const updated = teamMembers.map((m) => (m.id === updatedUser.id ? updatedUser : m));
+    setTeamMembers(updated);
+    if (currentUser.id === updatedUser.id) {
+      setCurrentUser(updatedUser);
+    }
+    if (updatedUser.themePreference) {
+      setIsDark(updatedUser.themePreference === 'dark');
+    }
+    triggerSystemAlert(
+      '👤 به‌روزرسانی پروفایل',
+      `تنظیمات و اطلاعات کاربری «${updatedUser.name}» با موفقیت ذخیره گردید.`,
+      'success'
     );
   };
 
@@ -739,6 +1056,7 @@ export default function App() {
           viewMode={viewMode}
           onToggleViewMode={() => setViewMode((prev) => (prev === 'desktop' ? 'mobile' : 'desktop'))}
           teamMembers={teamMembers}
+          systemAlerts={systemAlerts}
         />
 
         {/* View Switcher Container */}
@@ -772,6 +1090,8 @@ export default function App() {
                       setIsTaskModalOpen(true);
                     }}
                     onNavigateToReports={() => setCurrentView('reports')}
+                    onAddDirectComment={handleDirectComment}
+                    onOpenTeamModal={() => setIsTeamModalOpen(true)}
                   />
                 )}
 
@@ -829,6 +1149,8 @@ export default function App() {
                   setIsTaskModalOpen(true);
                 }}
                 onNavigateToReports={() => setCurrentView('reports')}
+                onAddDirectComment={handleDirectComment}
+                onOpenTeamModal={() => setIsTeamModalOpen(true)}
               />
             )}
 
@@ -909,6 +1231,11 @@ export default function App() {
         teamMembers={teamMembers}
         onOpenTeamModal={() => setIsTeamModalOpen(true)}
         onLogout={handleLogout}
+        isDark={isDark}
+        onToggleTheme={() => setIsDark(!isDark)}
+        onSelectTask={handleSelectTask}
+        onUpdateUserProfile={handleUpdateUserProfile}
+        onDeleteMember={handleDeleteMember}
       />
 
       {/* Senior Manager Team Management Modal */}
@@ -941,6 +1268,7 @@ export default function App() {
         isDark={isDark}
         onToggleTheme={() => setIsDark(!isDark)}
         onResetData={handleResetData}
+        onResetToEmpty={handleResetToEmpty}
       />
 
       {/* Confirmation Modal for Workspace Operations */}
@@ -959,6 +1287,16 @@ export default function App() {
         activeAlarm={activeAlarm}
         onDismiss={() => setActiveAlarm(null)}
         onOpenTask={handleSelectTask}
+      />
+
+      {/* Real-time System Alerts & Notification Toasts */}
+      <ToastNotification
+        alerts={systemAlerts}
+        onDismiss={handleDismissAlert}
+        onSelectTask={(taskId) => {
+          const t = tasks.find((item) => item.id === taskId);
+          if (t) handleSelectTask(t);
+        }}
       />
     </div>
   );
